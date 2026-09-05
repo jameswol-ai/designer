@@ -1,0 +1,7 @@
+{
+  "Design Basics": ["Human Dimensions", "Space Requirements", "Movement", "Accessibility", "Dimensional Coordination"],
+  "Building Types": ["Housing", "Offices", "Schools", "Universities", "Hospitals", "Hotels", "Retail", "Restaurants", "Libraries", "Industrial", "Sports", "Religious", "Civic", "Transport"],
+  "Environment": ["Daylight", "Lighting", "Ventilation", "Thermal", "Acoustics", "Tropical Design"],
+  "Safety": ["Fire", "Egress", "Accessibility", "Security", "Flood"],
+  "Design Engine": ["Space Program", "Adjacency", "Planning", "Dimensions", "Compliance", "Building Model", "Floor Plans", "Sections", "Elevations", "Reports"]
+}
