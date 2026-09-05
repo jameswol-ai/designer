@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "designer.drawing_sheet.v1",
+  "title": "Designer Drawing Sheet",
+  "type": "object",
+  "required": ["schema_version", "sheet_size", "drawing_number", "title", "project_id", "graphics", "title_block"],
+  "properties": {
+    "schema_version": {"const": "designer.drawing_sheet.v1"},
+    "sheet_size": {"type": "string", "enum": ["A0", "A1", "A2", "A3", "A4"]},
+    "drawing_number": {"type": "string"},
+    "title": {"type": "string"},
+    "project_id": {"type": "string"},
+    "floor": {"type": "integer", "minimum": 1},
+    "graphics": {"type": "array", "items": {"type": "object"}},
+    "title_block": {"type": "object"}
+  }
+}
