@@ -1,0 +1,10 @@
+{
+  "bedroom_single": {"label": "Single bedroom", "min_area": 9.0, "min_width": 2.4, "min_depth": 3.0},
+  "bedroom_double": {"label": "Double bedroom", "min_area": 11.0, "min_width": 2.7, "min_depth": 3.0},
+  "living_room": {"label": "Living room", "min_area": 14.0, "min_width": 3.0, "min_depth": 3.5},
+  "kitchen": {"label": "Kitchen", "min_area": 7.0, "min_width": 2.1, "min_depth": 3.0},
+  "office": {"label": "Office", "min_area": 10.0, "min_width": 2.7, "min_depth": 3.0},
+  "classroom": {"label": "Classroom", "min_area": 50.0, "min_width": 6.0, "min_depth": 7.5},
+  "toilet": {"label": "WC", "min_area": 2.0, "min_width": 1.2, "min_depth": 1.5},
+  "corridor": {"label": "Corridor", "min_area": 0.0, "min_width": 1.2, "min_depth": 1.2}
+}
