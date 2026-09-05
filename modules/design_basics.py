@@ -3,8 +3,13 @@ import streamlit as st
 
 from engine.design_basics import DesignBasicRule, active_rules, design_basics_report
 
-
-CATEGORIES = ["Human Dimensions", "Space Requirements", "Movement", "Accessibility", "Dimensional Coordination"]
+CATEGORIES = [
+    "Human Dimensions",
+    "Space Requirements",
+    "Movement",
+    "Accessibility",
+    "Dimensional Coordination",
+]
 
 
 def _import_rules(uploaded):
@@ -25,8 +30,20 @@ def _import_rules(uploaded):
     ]
 
 
-def render(project):
-    st.subheader("Design Basics")
+def _rows_for_category(report, category):
+    if category == "Human Dimensions":
+        return report["human_dimensions"]
+    if category == "Space Requirements":
+        return report["space_requirements"]
+    if category == "Movement":
+        return report["movement"]
+    if category == "Accessibility":
+        return [report["accessibility"]]
+    return [report["dimensional_coordination"]]
+
+
+def render(project, category=None):
+    st.subheader(category or "Design Basics")
     st.caption("Rule-driven architectural planning checks for human dimensions, space, movement, accessibility and dimensional coordination.")
 
     report = design_basics_report(project)
@@ -36,18 +53,18 @@ def render(project):
     c3.metric("Planning grid", f"{report['dimensional_coordination']['planning_grid_m']:.2f} m")
     c4.metric("Turning diameter", f"{report['accessibility']['turning_diameter_m']:.2f} m")
 
-    category = st.selectbox("Design Basics layer", CATEGORIES)
-    if category == "Human Dimensions":
-        rows = report["human_dimensions"]
-    elif category == "Space Requirements":
-        rows = report["space_requirements"]
-    elif category == "Movement":
-        rows = report["movement"]
-    elif category == "Accessibility":
-        rows = [report["accessibility"]]
-    else:
-        rows = [report["dimensional_coordination"]]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    selected = category or st.selectbox("Design Basics layer", CATEGORIES)
+    st.dataframe(pd.DataFrame(_rows_for_category(report, selected)), use_container_width=True, hide_index=True)
+
+    if selected == "Movement":
+        st.subheader("Movement checks")
+        st.write("Spaces are screened against the active conceptual movement-width rule. Project-specific circulation and code requirements remain authoritative.")
+    elif selected == "Accessibility":
+        st.subheader("Accessibility baseline")
+        st.write("Door, turning and ramp values are planning baselines and must be verified against the governing accessibility requirements for the project jurisdiction.")
+    elif selected == "Dimensional Coordination":
+        st.subheader("Coordination")
+        st.write("The active planning grid and dimension offsets can be used by the layout and drawing engines as coordination parameters.")
 
     with st.expander("Import licensed Design Basics rules"):
         uploaded = st.file_uploader("CSV rules", type=["csv"], key="design_basics_rules_upload")
@@ -58,9 +75,9 @@ def render(project):
                 st.success(f"Loaded {len(imported)} rules for this session.")
             except (ValueError, TypeError) as exc:
                 st.error(str(exc))
-        if st.button("Clear imported Design Basics rules"):
+        if st.button("Clear imported Design Basics rules", key="clear_design_basics_rules"):
             st.session_state.pop("design_basic_rules", None)
             st.rerun()
 
-    st.subheader("Active rule set")
-    st.dataframe(pd.DataFrame([rule.to_dict() for rule in active_rules()]), use_container_width=True, hide_index=True)
+    with st.expander("Active rule set"):
+        st.dataframe(pd.DataFrame([rule.to_dict() for rule in active_rules()]), use_container_width=True, hide_index=True)
