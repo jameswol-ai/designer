@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 from .architectural_model import Element, WALL_HEIGHT
 from .layout import generate_layout
 from .models import Project
+
+WALL_THICKNESS = 0.10
+DOOR_WIDTH = 0.90
+DOOR_DEPTH = 0.08
+DOOR_HEIGHT = 2.10
+WINDOW_WIDTH = 1.20
+WINDOW_DEPTH = 0.08
+WINDOW_HEIGHT = 1.20
+WINDOW_SILL = 0.90
 
 
 @dataclass(frozen=True)
@@ -42,14 +51,15 @@ class BuildingModel:
         }
 
 
-def _floor_rooms(project: Project, floor: int, columns: int) -> List[Dict]:
-    return [r for r in generate_layout(project, columns=columns) if int(r.get("floor", 1)) == floor]
+def _normalise_layout(project: Project, columns: int, layout: Optional[Sequence[Dict]]) -> List[Dict]:
+    source = list(layout) if layout is not None else generate_layout(project, columns=columns)
+    return [dict(room) for room in source]
 
 
 def _floor_envelope(rooms: List[Dict]) -> tuple[float, float]:
     return (
-        max((r["x"] + r["width"] for r in rooms), default=0.0),
-        max((r["y"] + r["depth"] for r in rooms), default=0.0),
+        max((float(r["x"]) + float(r["width"]) for r in rooms), default=0.0),
+        max((float(r["y"]) + float(r["depth"]) for r in rooms), default=0.0),
     )
 
 
@@ -63,34 +73,58 @@ def _roof_slab(floor: int, width: float, depth: float) -> Element:
     return Element("roof_slab", floor, "Roof slab", 0.0, 0.0, width, depth, z, 0.20)
 
 
-def generate_building(project: Project, columns: int = 2) -> BuildingModel:
-    """Generate a conceptual multi-floor building model from the current project program."""
+def _wall_elements(room: Dict, floor: int, z: float) -> List[Element]:
+    x, y = float(room["x"]), float(room["y"])
+    w, d = float(room["width"]), float(room["depth"])
+    return [
+        Element("wall", floor, f"{room['name']} west wall", x, y, WALL_THICKNESS, d, z, WALL_HEIGHT),
+        Element("wall", floor, f"{room['name']} east wall", x + w - WALL_THICKNESS, y, WALL_THICKNESS, d, z, WALL_HEIGHT),
+        Element("wall", floor, f"{room['name']} south wall", x, y, w, WALL_THICKNESS, z, WALL_HEIGHT),
+        Element("wall", floor, f"{room['name']} north wall", x, y + d - WALL_THICKNESS, w, WALL_THICKNESS, z, WALL_HEIGHT),
+    ]
+
+
+def _opening_elements(room: Dict, floor: int, z: float) -> List[Element]:
+    x, y = float(room["x"]), float(room["y"])
+    w, d = float(room["width"]), float(room["depth"])
+    door_x = x + max(0.0, (w - DOOR_WIDTH) / 2.0)
+    window_width = min(max(WINDOW_WIDTH, w * 0.35), max(WINDOW_WIDTH, w - 0.30))
+    window_x = x + max(0.0, (w - window_width) / 2.0)
+    return [
+        Element("door", floor, f"{room['name']} entrance", door_x, y, DOOR_WIDTH, DOOR_DEPTH, z, DOOR_HEIGHT),
+        Element("window", floor, f"{room['name']} window", window_x, y + d - WINDOW_DEPTH, window_width, WINDOW_DEPTH, z + WINDOW_SILL, WINDOW_HEIGHT),
+    ]
+
+
+def generate_building(
+    project: Project,
+    columns: int = 2,
+    layout: Optional[Sequence[Dict]] = None,
+) -> BuildingModel:
+    """Generate a conceptual multi-floor building from a program or supplied spatial layout.
+
+    The optional layout lets a selected planning alternative flow directly into the
+    building model and keeps the generator deterministic.
+    """
     floors = max(1, int(project.floors))
     columns = max(1, int(columns))
-    rooms = generate_layout(project, columns=columns)
+    rooms = _normalise_layout(project, columns, layout)
     elements: List[Element] = []
 
     for floor in range(1, floors + 1):
-        floor_rooms = _floor_rooms(project, floor, columns)
+        floor_rooms = [r for r in rooms if int(r.get("floor", 1)) == floor]
         width, depth = _floor_envelope(floor_rooms)
         if width <= 0.0 or depth <= 0.0:
             continue
+
         elements.append(_floor_slab(floor, width, depth))
         if floor == floors:
             elements.append(_roof_slab(floor, width, depth))
 
         z = (floor - 1) * WALL_HEIGHT
         for room in floor_rooms:
-            x, y = room["x"], room["y"]
-            w, d = room["width"], room["depth"]
-            elements.extend([
-                Element("wall", floor, f"{room['name']} west wall", x, y, 0.10, d, z, WALL_HEIGHT),
-                Element("wall", floor, f"{room['name']} east wall", x + w - 0.10, y, 0.10, d, z, WALL_HEIGHT),
-                Element("wall", floor, f"{room['name']} south wall", x, y, w, 0.10, z, WALL_HEIGHT),
-                Element("wall", floor, f"{room['name']} north wall", x, y + d - 0.10, w, 0.10, z, WALL_HEIGHT),
-                Element("door", floor, f"{room['name']} entrance", x + w / 2.0 - 0.45, y, 0.90, 0.08, z, 2.10),
-                Element("window", floor, f"{room['name']} window", x + w * 0.25, y + d - 0.05, max(1.20, w * 0.35), 0.08, z + 0.90, 1.20),
-            ])
+            elements.extend(_wall_elements(room, floor, z))
+            elements.extend(_opening_elements(room, floor, z))
 
     return BuildingModel(floors=floors, floor_height=WALL_HEIGHT, rooms=rooms, elements=elements)
 
