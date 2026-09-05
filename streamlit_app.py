@@ -1,10 +1,8 @@
 import json
-import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from engine import build_project, score_project
-from modules import dashboard, project_brief, site_context, space_program, metric_handbook, space_planner, adjacency, floor_plan, compliance
+from modules import dashboard, project_brief, site_context, space_program, metric_handbook, space_planner, adjacency, floor_plan, compliance, viewers
 
 st.set_page_config(page_title="Designer | Architectural Design Studio", page_icon="🏛️", layout="wide")
 
@@ -15,6 +13,7 @@ TABS = {
     "Space Program": space_program,
     "Metric Standards": metric_handbook,
     "Space Planner": space_planner,
+    "Viewers": viewers,
     "Floor Plan": floor_plan,
     "Adjacency": adjacency,
     "Compliance": compliance,
@@ -22,7 +21,7 @@ TABS = {
 
 if "project" not in st.session_state:
     st.session_state.project = build_project("My Architectural Project", "Residential", 1000.0, 1, "Medium")
-if "active_tab" not in st.session_state:
+if "active_tab" not in st.session_state or st.session_state.active_tab not in TABS:
     st.session_state.active_tab = "Dashboard"
 
 project = st.session_state.project
@@ -48,7 +47,10 @@ st.title("🏛️ Designer")
 st.caption(f"Metric-based architectural planning studio • {project.name}")
 
 scores = score_project(project)
-TABS[active].render(project, scores) if active == "Dashboard" else TABS[active].render(project)
+if active == "Dashboard":
+    TABS[active].render(project, scores)
+else:
+    TABS[active].render(project)
 
 st.divider()
 with st.expander("Project summary & export"):
