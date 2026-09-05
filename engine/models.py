@@ -79,15 +79,19 @@ class Project:
         spaces = []
         for raw in data.get("spaces", []):
             values = dict(raw)
-            values.pop("schema_version", None)
-            for derived in ("area_m2", "min_width_m", "min_depth_m", "total_area_m2"):
+            for derived in ("schema_version", "area_m2", "min_width_m", "min_depth_m", "total_area_m2"):
                 values.pop(derived, None)
             spaces.append(Space(**values))
-        values = dict(data)
-        values["spaces"] = spaces
-        values.pop("schema_version", None)
-        values["site_area_m2"] = values.pop("site_area_m2", values.get("site_area", 1000.0))
-        values.pop("programmed_area_m2", None)
-        values["target_gfa_m2"] = values.pop("target_gfa_m2", values.get("target_gfa", 0.0))
-        values.pop("target_gfa_m2", None)
-        return cls(**values)
+        return cls(
+            name=str(data.get("name", "Untitled Project")),
+            typology=str(data.get("typology", "Residential")),
+            site_area=float(data.get("site_area_m2", data.get("site_area", 1000.0))),
+            floors=max(1, int(data.get("floors", 1))),
+            location=str(data.get("location", "")),
+            climate=str(data.get("climate", "Tropical")),
+            target_gfa=float(data.get("target_gfa_m2", data.get("target_gfa", 0.0))),
+            spaces=spaces,
+            metadata=dict(data.get("metadata", {})),
+            id=str(data.get("id", uuid4())),
+            schema_version=str(data.get("schema_version", SCHEMA_VERSION)),
+        )
