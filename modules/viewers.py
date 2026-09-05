@@ -2,16 +2,16 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from engine.viewers import VIEW_MODES, model_summary
-from engine.layout import generate_layout
 from engine.furniture import furniture_schedule
 from engine.furniture_model import furniture_elements
 from engine.structure_grid import candidate_grids
-from engine.dimensions import grid_axes, grid_schedule, dimension_chains, dimension_summary, room_dimensions
+from engine.dimensions import grid_axes, grid_schedule, dimension_summary, room_dimensions
 from engine.vertical import stair_schedule
 from engine.environment import environmental_checks
 from engine.egress import egress_summary
 from engine.site import parking_plan
-from engine.architectural_model import building_elements, element_summary
+from engine.building_generator import generate_building
+from engine.planning_constraints import constraint_report
 
 FLOOR_HEIGHT = 3.2
 
@@ -25,7 +25,8 @@ def _safe_floor_count(project):
 
 
 def _floor_plan(project, floor=1, labels=True, grid=True, dimensions=True, structural_grid=True):
-    rooms = [r for r in generate_layout(project) if int(r.get("floor", 1)) == int(floor)]
+    building = generate_building(project)
+    rooms = [r for r in building.rooms if int(r.get("floor", 1)) == int(floor)]
     fig = go.Figure()
     for r in rooms:
         x0, y0 = r["x"], r["y"]
@@ -62,7 +63,7 @@ def _floor_plan(project, floor=1, labels=True, grid=True, dimensions=True, struc
 def _element_trace(element):
     x, y, z = element.x, element.y, element.z
     w, d, h = element.width, element.depth, element.height
-    if element.kind in {"wall", "column", "slab"}:
+    if element.kind in {"wall", "column", "slab", "floor_slab", "roof_slab"}:
         x0, x1 = x, x + w
         y0, y1 = y, y + d
         z0, z1 = z, z + h
@@ -104,8 +105,9 @@ def _furniture_trace(item, floor_height=FLOOR_HEIGHT):
 
 def _architectural_model(project, selected_floor=None, show_walls=True, show_slabs=True, show_openings=True, show_structure=True, show_stairs=True, show_furniture=True):
     fig = go.Figure()
-    elements = building_elements(project, selected_floor)
-    enabled = {"wall": show_walls, "slab": show_slabs, "door": show_openings, "window": show_openings, "column": show_structure, "stair": show_stairs}
+    building = generate_building(project)
+    elements = building.elements if selected_floor is None else [e for e in building.elements if e.floor == int(selected_floor)]
+    enabled = {"wall": show_walls, "column": show_structure, "slab": show_slabs, "floor_slab": show_slabs, "roof_slab": show_slabs, "door": show_openings, "window": show_openings, "stair": show_stairs}
     for element in elements:
         if not enabled.get(element.kind, True):
             continue
@@ -119,7 +121,7 @@ def _architectural_model(project, selected_floor=None, show_walls=True, show_sla
         for item in furniture_elements(project, selected_floor):
             fig.add_trace(_furniture_trace(item))
     fig.update_layout(height=720, scene=dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)", aspectmode="data"), margin=dict(l=0,r=0,t=20,b=0), legend=dict(orientation="h"))
-    return fig
+    return fig, building
 
 
 def _elevation(project, title, depth=False):
@@ -138,7 +140,7 @@ def _elevation(project, title, depth=False):
 
 def render(project):
     st.subheader("Architectural Viewers")
-    st.caption("Interactive conceptual visualization of the current architectural model.")
+    st.caption("Interactive conceptual visualization of the generated architectural building model.")
     view = st.selectbox("View", VIEW_MODES, index=min(2, len(VIEW_MODES)-1))
     floors = _safe_floor_count(project)
 
@@ -155,9 +157,12 @@ def render(project):
         show_structure = c4.checkbox("Structure", True)
         show_stairs = c5.checkbox("Stairs", True)
         show_furniture = c6.checkbox("Furniture", True)
-        st.plotly_chart(_architectural_model(project, selected_floor, show_walls, show_slabs, show_openings, show_structure, show_stairs, show_furniture), use_container_width=True)
-        st.subheader("Model elements")
-        st.dataframe([element_summary(project)], use_container_width=True, hide_index=True)
+        fig, building = _architectural_model(project, selected_floor, show_walls, show_slabs, show_openings, show_structure, show_stairs, show_furniture)
+        st.plotly_chart(fig, use_container_width=True)
+        st.subheader("Generated building")
+        st.dataframe([building.summary()], use_container_width=True, hide_index=True)
+        st.subheader("Planning diagnostics")
+        st.json(constraint_report(project, building.rooms))
     elif view == "Floor Plan":
         floor = st.slider("Floor", min_value=1, max_value=floors, value=1, step=1, key="viewer_floor")
         c1, c2, c3, c4 = st.columns(4)
