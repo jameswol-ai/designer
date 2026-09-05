@@ -87,9 +87,11 @@ NAVIGATION = {
 
 FLAT_TABS = [tab for tabs in NAVIGATION.values() for tab in tabs]
 
+active_metric_rows = st.session_state.get("metric_handbook_standards", [])
+
 if "project" not in st.session_state:
     st.session_state.project = build_project(
-        "My Architectural Project", "Residential", 1000.0, 1, "Medium"
+        "My Architectural Project", "Residential", 1000.0, 1, "Medium", session_rows=active_metric_rows
     )
 
 if "active_tab" not in st.session_state or st.session_state.active_tab not in FLAT_TABS:
@@ -144,21 +146,22 @@ with st.sidebar:
             project.site_area,
             project.floors,
             scale,
+            session_rows=st.session_state.get("metric_handbook_standards", []),
         )
         st.session_state.project.location = project.location
         st.session_state.project.climate = project.climate
         st.rerun()
 
     st.divider()
-    st.caption(
-        "Metric values included in this prototype are illustrative baseline data. "
-        "Licensed handbook-derived rules can be added to the metric data layer."
-    )
+    if active_metric_rows:
+        st.success(f"Active licensed Metric dataset: {len(active_metric_rows)} records")
+    else:
+        st.caption("Metric values included in this prototype are illustrative baseline data. Licensed handbook-derived rules can be added to the metric data layer.")
 
 st.title("Designer")
 st.caption(f"Metric-based architectural planning studio | {project.name}")
 
-scores = score_project(project)
+scores = score_project(project, session_rows=st.session_state.get("metric_handbook_standards", []))
 current_module = next(
     NAVIGATION[section][st.session_state.active_tab]
     for section in NAVIGATION
