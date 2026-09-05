@@ -24,33 +24,20 @@ def _draw_layout(layout):
             showarrow=False,
         )
     fig.update_yaxes(scaleanchor="x", scaleratio=1)
-    fig.update_layout(
-        height=650,
-        xaxis_title="m",
-        yaxis_title="m",
-        margin=dict(l=20, r=20, t=20, b=20),
-    )
+    fig.update_layout(height=650, xaxis_title="m", yaxis_title="m", margin=dict(l=20, r=20, t=20, b=20))
     return fig
 
 
 def _zone_rows(layout):
     return [
-        {
-            "floor": item["floor"],
-            "space": item["name"],
-            "category": item["category"],
-            "zone": classify_zone(item),
-        }
+        {"floor": item["floor"], "space": item["name"], "category": item["category"], "zone": classify_zone(item)}
         for item in layout
     ]
 
 
 def render(project):
     st.subheader("Space Planner")
-    st.caption(
-        "Generate and compare conceptual planning alternatives using metric, adjacency, zoning, "
-        "structural-grid, furniture and compliance signals."
-    )
+    st.caption("Generate, compare and select conceptual planning alternatives before building generation.")
 
     max_columns = st.slider("Maximum planning columns", 1, 6, 4)
     summary = planning_summary(project, max_columns=max_columns)
@@ -71,8 +58,16 @@ def render(project):
     st.dataframe(rows, use_container_width=True, hide_index=True)
 
     labels = [a.name for a in alternatives]
-    selected = st.selectbox("Alternative", labels, index=0)
+    default_index = 0
+    if summary.get("recommended") in labels:
+        default_index = labels.index(summary["recommended"])
+    selected = st.selectbox("Alternative", labels, index=default_index, key="selected_planning_alternative")
     alternative = alternatives[labels.index(selected)]
+
+    st.session_state["selected_planning_layout"] = alternative.layout
+    st.session_state["selected_planning_alternative"] = alternative.name
+    st.session_state["selected_planning_columns"] = alternative.columns
+
     report = constraint_report(project, alternative.layout)
 
     st.subheader(f"{alternative.name} plan")
@@ -97,20 +92,15 @@ def render(project):
     st.bar_chart(criteria)
 
     st.subheader("Program zoning")
-    zone_rows = _zone_rows(alternative.layout)
-    st.dataframe(zone_rows, use_container_width=True, hide_index=True)
+    st.dataframe(_zone_rows(alternative.layout), use_container_width=True, hide_index=True)
+
+    st.success("Selected alternative is now the active conceptual layout for the building model and Viewer.")
 
     with st.expander("Constraint diagnostics"):
         st.json(report)
 
     with st.expander("Manual layout control"):
-        columns = st.slider(
-            "Layout columns",
-            1,
-            6,
-            alternative.columns,
-            key="manual_layout_columns",
-        )
+        columns = st.slider("Layout columns", 1, 6, alternative.columns, key="manual_layout_columns")
         manual_layout = generate_layout(project, columns=columns)
         st.plotly_chart(_draw_layout(manual_layout), use_container_width=True)
         st.json(constraint_report(project, manual_layout))
