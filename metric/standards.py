@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from .models import Space
+from engine.models import Space
 
 # Illustrative baseline values only. Replace/extend with licensed project standards.
 STANDARDS: Dict[str, Dict[str, Any]] = {
@@ -22,6 +22,4 @@ def validate_space(space: Space) -> Dict[str, Any]:
     area_ok = space.area >= rule["min_area"]
     width_ok = space.min_width >= rule["min_width"]
     depth_ok = space.min_depth >= rule["min_depth"]
-    return {"name": space.name, "area": space.area, "required_area": rule["min_area"],
-            "area_ok": area_ok, "width_ok": width_ok, "depth_ok": depth_ok,
-            "status": "Compliant" if area_ok and width_ok and depth_ok else "Review"}
+    return {"name": space.name, "area": space.area, "required_area": rule["min_area"], "area_ok": area_ok, "width_ok": width_ok, "depth_ok": depth_ok, "status": "Compliant" if area_ok and width_ok and depth_ok else "Review"}
