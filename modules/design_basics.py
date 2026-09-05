@@ -3,13 +3,7 @@ import streamlit as st
 
 from engine.design_basics import DesignBasicRule, active_rules, design_basics_report
 
-CATEGORIES = [
-    "Human Dimensions",
-    "Space Requirements",
-    "Movement",
-    "Accessibility",
-    "Dimensional Coordination",
-]
+CATEGORIES = ["Human Dimensions", "Space Requirements", "Movement", "Accessibility", "Dimensional Coordination"]
 
 
 def _import_rules(uploaded):
@@ -20,25 +14,17 @@ def _import_rules(uploaded):
     missing = required - set(frame.columns)
     if missing:
         raise ValueError(f"Missing required columns: {', '.join(sorted(missing))}")
-    return [
-        DesignBasicRule(
-            key=str(row["key"]), category=str(row["category"]), label=str(row["label"]),
-            value=float(row["value"]), unit=str(row["unit"]),
-            description=str(row["description"]), source=str(row.get("source", "Licensed/user-supplied data")),
-        )
-        for row in frame.to_dict(orient="records")
-    ]
+    return [DesignBasicRule(
+        key=str(row["key"]), category=str(row["category"]), label=str(row["label"]), value=float(row["value"]),
+        unit=str(row["unit"]), description=str(row["description"]), source=str(row.get("source", "Licensed/user-supplied data")),
+    ) for row in frame.to_dict(orient="records")]
 
 
 def _rows_for_category(report, category):
-    if category == "Human Dimensions":
-        return report["human_dimensions"]
-    if category == "Space Requirements":
-        return report["space_requirements"]
-    if category == "Movement":
-        return report["movement"]
-    if category == "Accessibility":
-        return [report["accessibility"]]
+    if category == "Human Dimensions": return report["human_dimensions"]
+    if category == "Space Requirements": return report["space_requirements"]
+    if category == "Movement": return report["movement"]
+    if category == "Accessibility": return [report["accessibility"]]
     return [report["dimensional_coordination"]]
 
 
@@ -46,7 +32,9 @@ def render(project, category=None):
     st.subheader(category or "Design Basics")
     st.caption("Rule-driven architectural planning checks for human dimensions, space, movement, accessibility and dimensional coordination.")
 
-    report = design_basics_report(project)
+    design_rows = st.session_state.get("design_basic_rules", [])
+    metric_rows = st.session_state.get("metric_handbook_standards", [])
+    report = design_basics_report(project, session_rows=metric_rows, design_rows=design_rows)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Movement score", f"{report['movement_score']:.1f}%")
     c2.metric("Spaces", len(report["space_requirements"]))
@@ -73,6 +61,7 @@ def render(project, category=None):
                 imported = _import_rules(uploaded)
                 st.session_state["design_basic_rules"] = [rule.to_dict() for rule in imported]
                 st.success(f"Loaded {len(imported)} rules for this session.")
+                st.rerun()
             except (ValueError, TypeError) as exc:
                 st.error(str(exc))
         if st.button("Clear imported Design Basics rules", key="clear_design_basics_rules"):
@@ -80,4 +69,4 @@ def render(project, category=None):
             st.rerun()
 
     with st.expander("Active rule set"):
-        st.dataframe(pd.DataFrame([rule.to_dict() for rule in active_rules()]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame([rule.to_dict() for rule in active_rules(design_rows)]), use_container_width=True, hide_index=True)
