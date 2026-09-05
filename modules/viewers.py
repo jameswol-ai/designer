@@ -4,6 +4,7 @@ import streamlit as st
 from engine.viewers import VIEW_MODES, model_summary
 from engine.layout import generate_layout
 from engine.furniture import furniture_schedule
+from engine.furniture_model import furniture_elements
 from engine.structure_grid import candidate_grids
 from engine.vertical import stair_schedule
 from engine.environment import environmental_checks
@@ -76,7 +77,24 @@ def _element_trace(element):
     return go.Scatter3d(x=[x, x+w], y=[y, y+d], z=[z, z+h], mode="lines", name=element.name)
 
 
-def _architectural_model(project, selected_floor=None, show_walls=True, show_slabs=True, show_openings=True, show_structure=True, show_stairs=True):
+def _furniture_trace(item, floor_height=FLOOR_HEIGHT):
+    z0 = (item.floor - 1) * floor_height
+    x, y, w, d, h = item.x, item.y, item.width, item.depth, item.height
+    vx = [x,x+w,x+w,x,x,x+w,x+w,x]
+    vy = [y,y,y+d,y+d,y,y,y+d,y+d]
+    vz = [z0,z0,z0,z0,z0+h,z0+h,z0+h,z0+h]
+    i = [0,0,0,4,4,4,0,1,2,3]
+    j = [1,2,4,5,6,7,1,5,6,7]
+    k = [2,3,5,6,7,4,5,6,7,4]
+    return go.Mesh3d(
+        x=vx, y=vy, z=vz, i=i, j=j, k=k,
+        opacity=0.9, name=item.name,
+        hovertemplate=f"{item.name}<br>{item.room}<br>{item.width:.2f} x {item.depth:.2f} m<extra></extra>",
+        showlegend=False,
+    )
+
+
+def _architectural_model(project, selected_floor=None, show_walls=True, show_slabs=True, show_openings=True, show_structure=True, show_stairs=True, show_furniture=True):
     fig = go.Figure()
     elements = building_elements(project, selected_floor)
     enabled = {"wall": show_walls, "slab": show_slabs, "door": show_openings, "window": show_openings, "column": show_structure, "stair": show_stairs}
@@ -89,6 +107,11 @@ def _architectural_model(project, selected_floor=None, show_walls=True, show_sla
                 fig.add_trace(trace)
         else:
             fig.add_trace(traces)
+
+    if show_furniture:
+        for item in furniture_elements(project, selected_floor):
+            fig.add_trace(_furniture_trace(item))
+
     fig.update_layout(
         height=720,
         scene=dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)", aspectmode="data"),
@@ -121,17 +144,17 @@ def render(project):
         st.info("Use the Dashboard workspace for project metrics and scoring.")
 
     elif view == "3D Model":
-        c1, c2 = st.columns(2)
         floor_options = ["All floors"] + list(range(1, max(1, int(project.floors)) + 1))
-        floor = c1.selectbox("Building level", floor_options)
+        floor = st.selectbox("Building level", floor_options)
         selected_floor = None if floor == "All floors" else int(floor)
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c1, c2, c3, c4, c5, c6 = st.columns(6)
         show_walls = c1.checkbox("Walls", True)
         show_slabs = c2.checkbox("Slabs", True)
         show_openings = c3.checkbox("Doors and windows", True)
         show_structure = c4.checkbox("Structure", True)
         show_stairs = c5.checkbox("Stairs", True)
-        st.plotly_chart(_architectural_model(project, selected_floor, show_walls, show_slabs, show_openings, show_structure, show_stairs), use_container_width=True)
+        show_furniture = c6.checkbox("Furniture", True)
+        st.plotly_chart(_architectural_model(project, selected_floor, show_walls, show_slabs, show_openings, show_structure, show_stairs, show_furniture), use_container_width=True)
         st.subheader("Model elements")
         st.dataframe([element_summary(project)], use_container_width=True, hide_index=True)
 
