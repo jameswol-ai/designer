@@ -4,7 +4,7 @@ from functools import partial
 import streamlit as st
 
 from engine import build_project, project_document, score_project
-from modules import dashboard, project_brief, site_context, space_program, metric_handbook, space_planner, adjacency, floor_plan, compliance, viewers, design_reference, design_basics
+from modules import dashboard, project_brief, site_context, space_program, metric_handbook, space_planner, adjacency, floor_plan, compliance, viewers, design_reference, design_basics, drawings
 
 st.set_page_config(page_title="Designer | Architectural Design Studio", page_icon="D", layout="wide")
 
@@ -23,14 +23,14 @@ NAVIGATION = {
     "Building Types": {name: reference("Building Types", name) for name in ["Housing", "Offices", "Schools", "Universities", "Hospitals", "Hotels", "Retail", "Restaurants", "Libraries", "Industrial", "Sports", "Religious", "Civic", "Transport"]},
     "Environment": {name: reference("Environment", name) for name in ["Daylight", "Lighting", "Ventilation", "Thermal", "Acoustics", "Tropical Design"]},
     "Safety": {name: reference("Safety", name) for name in ["Fire", "Egress", "Accessibility", "Security", "Flood"]},
-    "Design Engine": {"Space Program": space_program, "Adjacency": adjacency, "Planning": space_planner, "Dimensions": viewers, "Compliance": compliance, "Building Model": viewers, "Floor Plans": floor_plan, "Sections": viewers, "Elevations": viewers, "Reports": viewers, "Metric Standards": metric_handbook, "Viewers": viewers},
+    "Design Engine": {"Space Program": space_program, "Adjacency": adjacency, "Planning": space_planner, "Dimensions": viewers, "Compliance": compliance, "Building Model": viewers, "Floor Plans": drawings, "Sections": drawings, "Elevations": drawings, "Reports": viewers, "Metric Standards": metric_handbook, "Viewers": viewers},
 }
 
 FLAT_TABS = [tab for tabs in NAVIGATION.values() for tab in tabs]
 metric_rows = st.session_state.get("metric_handbook_standards", [])
 
 if "project" not in st.session_state:
-    st.session_state.project = build_project("My Architectural Project", "Residential", 1000.0, 1, "Medium")
+    st.session_state.project = build_project("My Architectural Project", "Residential", 1000.0, 1, "Medium", session_rows=metric_rows)
 if "active_tab" not in st.session_state or st.session_state.active_tab not in FLAT_TABS:
     st.session_state.active_tab = "Dashboard"
 
@@ -56,6 +56,8 @@ with st.sidebar:
         st.session_state.project = build_project(project.name, project.typology, project.site_area, project.floors, scale, session_rows=metric_rows)
         st.session_state.project.location = project.location
         st.session_state.project.climate = project.climate
+        st.session_state.pop("selected_planning_layout", None)
+        st.session_state.pop("selected_planning_alternative", None)
         st.rerun()
     st.divider()
     st.caption(f"Data schema: {project.schema_version}")
