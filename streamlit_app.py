@@ -39,66 +39,38 @@ NAVIGATION = {
         "Dimensional Coordination": basics("Dimensional Coordination"),
     },
     "Building Types": {
-        "Housing": reference("Building Types", "Housing"),
-        "Offices": reference("Building Types", "Offices"),
-        "Schools": reference("Building Types", "Schools"),
-        "Universities": reference("Building Types", "Universities"),
-        "Hospitals": reference("Building Types", "Hospitals"),
-        "Hotels": reference("Building Types", "Hotels"),
-        "Retail": reference("Building Types", "Retail"),
-        "Restaurants": reference("Building Types", "Restaurants"),
-        "Libraries": reference("Building Types", "Libraries"),
-        "Industrial": reference("Building Types", "Industrial"),
-        "Sports": reference("Building Types", "Sports"),
-        "Religious": reference("Building Types", "Religious"),
-        "Civic": reference("Building Types", "Civic"),
-        "Transport": reference("Building Types", "Transport"),
+        "Housing": reference("Building Types", "Housing"), "Offices": reference("Building Types", "Offices"),
+        "Schools": reference("Building Types", "Schools"), "Universities": reference("Building Types", "Universities"),
+        "Hospitals": reference("Building Types", "Hospitals"), "Hotels": reference("Building Types", "Hotels"),
+        "Retail": reference("Building Types", "Retail"), "Restaurants": reference("Building Types", "Restaurants"),
+        "Libraries": reference("Building Types", "Libraries"), "Industrial": reference("Building Types", "Industrial"),
+        "Sports": reference("Building Types", "Sports"), "Religious": reference("Building Types", "Religious"),
+        "Civic": reference("Building Types", "Civic"), "Transport": reference("Building Types", "Transport"),
     },
     "Environment": {
-        "Daylight": reference("Environment", "Daylight"),
-        "Lighting": reference("Environment", "Lighting"),
-        "Ventilation": reference("Environment", "Ventilation"),
-        "Thermal": reference("Environment", "Thermal"),
-        "Acoustics": reference("Environment", "Acoustics"),
-        "Tropical Design": reference("Environment", "Tropical Design"),
+        "Daylight": reference("Environment", "Daylight"), "Lighting": reference("Environment", "Lighting"),
+        "Ventilation": reference("Environment", "Ventilation"), "Thermal": reference("Environment", "Thermal"),
+        "Acoustics": reference("Environment", "Acoustics"), "Tropical Design": reference("Environment", "Tropical Design"),
     },
     "Safety": {
-        "Fire": reference("Safety", "Fire"),
-        "Egress": reference("Safety", "Egress"),
-        "Accessibility": reference("Safety", "Accessibility"),
-        "Security": reference("Safety", "Security"),
+        "Fire": reference("Safety", "Fire"), "Egress": reference("Safety", "Egress"),
+        "Accessibility": reference("Safety", "Accessibility"), "Security": reference("Safety", "Security"),
         "Flood": reference("Safety", "Flood"),
     },
     "Design Engine": {
-        "Space Program": space_program,
-        "Adjacency": adjacency,
-        "Planning": space_planner,
-        "Dimensions": viewers,
-        "Compliance": compliance,
-        "Building Model": viewers,
-        "Floor Plans": floor_plan,
-        "Sections": viewers,
-        "Elevations": viewers,
-        "Reports": viewers,
-        "Metric Standards": metric_handbook,
-        "Viewers": viewers,
+        "Space Program": space_program, "Adjacency": adjacency, "Planning": space_planner,
+        "Dimensions": viewers, "Compliance": compliance, "Building Model": viewers,
+        "Floor Plans": floor_plan, "Sections": viewers, "Elevations": viewers, "Reports": viewers,
+        "Metric Standards": metric_handbook, "Viewers": viewers,
     },
-    "Project": {
-        "Dashboard": dashboard,
-        "Project Brief": project_brief,
-        "Site & Context": site_context,
-    },
+    "Project": {"Dashboard": dashboard, "Project Brief": project_brief, "Site & Context": site_context},
 }
 
 FLAT_TABS = [tab for tabs in NAVIGATION.values() for tab in tabs]
 active_metric_rows = st.session_state.get("metric_handbook_standards", [])
 
 if "project" not in st.session_state:
-    # Keep first-run project creation compatible with older deployed planner builds.
-    # No imported Metric dataset can exist on the first pass unless a project already exists.
-    st.session_state.project = build_project(
-        "My Architectural Project", "Residential", 1000.0, 1, "Medium"
-    )
+    st.session_state.project = build_project("My Architectural Project", "Residential", 1000.0, 1, "Medium")
 
 if "active_tab" not in st.session_state or st.session_state.active_tab not in FLAT_TABS:
     st.session_state.active_tab = "Dashboard"
@@ -126,7 +98,10 @@ with st.sidebar:
     st.subheader("Project Controls")
     scale = st.selectbox("Program scale", ["Small", "Medium", "Large"], index=1)
     if st.button("Generate / Reset Program", type="primary", use_container_width=True):
-        st.session_state.project = build_project(project.name, project.typology, project.site_area, project.floors, scale, session_rows=st.session_state.get("metric_handbook_standards", []))
+        st.session_state.project = build_project(
+            project.name, project.typology, project.site_area, project.floors, scale,
+            session_rows=st.session_state.get("metric_handbook_standards", []),
+        )
         st.session_state.project.location = project.location
         st.session_state.project.climate = project.climate
         st.rerun()
@@ -138,9 +113,16 @@ with st.sidebar:
 
 st.title("Designer")
 st.caption(f"Metric-based architectural planning studio | {project.name}")
-scores = score_project(project, session_rows=st.session_state.get("metric_handbook_standards", []))
-current_module = next(NAVIGATION[section][st.session_state.active_tab] for section in NAVIGATION if st.session_state.active_tab in NAVIGATION[section])
 
+# Compatibility wrapper: deployed validation engines may not yet accept session_rows.
+try:
+    scores = score_project(project, session_rows=st.session_state.get("metric_handbook_standards", []))
+except TypeError as exc:
+    if "session_rows" not in str(exc):
+        raise
+    scores = score_project(project)
+
+current_module = next(NAVIGATION[section][st.session_state.active_tab] for section in NAVIGATION if st.session_state.active_tab in NAVIGATION[section])
 if st.session_state.active_tab == "Dashboard":
     current_module.render(project, scores)
 elif callable(current_module) and not hasattr(current_module, "render"):
