@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from .adjacency import adjacency_score
 from .furniture import furniture_check
 from .layout import generate_layout
+from .planning_constraints import constraint_report
 from .validation import check_project
 
 
@@ -18,6 +18,8 @@ class PlanningAlternative:
     circulation: float
     furniture: float
     adjacency: float
+    zoning: float
+    grid_alignment: float
     compliance: float
     overlap_count: int
     layout: List[Dict]
@@ -31,6 +33,8 @@ class PlanningAlternative:
             "circulation": round(self.circulation, 1),
             "furniture": round(self.furniture, 1),
             "adjacency": round(self.adjacency, 1),
+            "zoning": round(self.zoning, 1),
+            "grid alignment": round(self.grid_alignment, 1),
             "compliance": round(self.compliance, 1),
             "overlaps": self.overlap_count,
         }
@@ -40,10 +44,10 @@ def _overlaps(a: Dict, b: Dict) -> bool:
     if a["floor"] != b["floor"]:
         return False
     return not (
-        a["x"] + a["width"] <= b["x"] or
-        b["x"] + b["width"] <= a["x"] or
-        a["y"] + a["depth"] <= b["y"] or
-        b["y"] + b["depth"] <= a["y"]
+        a["x"] + a["width"] <= b["x"]
+        or b["x"] + b["width"] <= a["x"]
+        or a["y"] + a["depth"] <= b["y"]
+        or b["y"] + b["depth"] <= a["y"]
     )
 
 
@@ -95,31 +99,29 @@ def _compliance_score(project) -> float:
     return 100.0 if total == 0 else passed / total * 100.0
 
 
-def _adjacency_score(project) -> float:
-    try:
-        value = float(adjacency_score(project))
-        return max(0.0, min(100.0, value))
-    except (TypeError, ValueError, AttributeError):
-        return 100.0
-
-
 def generate_alternatives(project, max_columns: int = 4) -> List[PlanningAlternative]:
     furniture = _furniture_score(project)
     compliance = _compliance_score(project)
-    adjacency = _adjacency_score(project)
     alternatives: List[PlanningAlternative] = []
 
     for columns in range(1, max(1, int(max_columns)) + 1):
         layout = generate_layout(project, columns=columns)
-        overlaps = overlap_count(layout)
+        report = constraint_report(project, layout)
+        overlaps = int(report["overlaps"])
         compactness = _compactness(layout)
-        circulation = max(0.0, 100.0 - min(100.0, overlaps * 12.0))
+        circulation = max(0.0, 100.0 - min(100.0, overlaps * 20.0))
+        adjacency = float(report["adjacency_proximity"])
+        zoning = float(report["zoning"])
+        grid_alignment = float(report["grid_alignment"])
+
         score = (
-            compactness * 0.25 +
-            circulation * 0.20 +
-            furniture * 0.15 +
-            adjacency * 0.20 +
-            compliance * 0.20
+            compactness * 0.20
+            + circulation * 0.15
+            + furniture * 0.10
+            + adjacency * 0.20
+            + zoning * 0.10
+            + grid_alignment * 0.10
+            + compliance * 0.15
         )
         alternatives.append(PlanningAlternative(
             name=f"Option {chr(64 + columns)}",
@@ -129,12 +131,14 @@ def generate_alternatives(project, max_columns: int = 4) -> List[PlanningAlterna
             circulation=circulation,
             furniture=furniture,
             adjacency=adjacency,
+            zoning=zoning,
+            grid_alignment=grid_alignment,
             compliance=compliance,
             overlap_count=overlaps,
             layout=layout,
         ))
 
-    return sorted(alternatives, key=lambda item: item.score, reverse=True)
+    return sorted(alternatives, key=lambda item: (-item.score, item.columns))
 
 
 def best_alternative(project, max_columns: int = 4) -> Optional[PlanningAlternative]:
@@ -145,9 +149,15 @@ def best_alternative(project, max_columns: int = 4) -> Optional[PlanningAlternat
 def planning_summary(project, max_columns: int = 4) -> Dict:
     alternatives = generate_alternatives(project, max_columns)
     best = alternatives[0] if alternatives else None
+    report = constraint_report(project, best.layout) if best else {}
     return {
         "alternatives": len(alternatives),
         "recommended": best.name if best else None,
         "score": round(best.score, 1) if best else 0.0,
         "columns": best.columns if best else 0,
+        "overlaps": report.get("overlaps", 0),
+        "adjacency": report.get("adjacency_proximity", 0.0),
+        "zoning": report.get("zoning", 0.0),
+        "grid_alignment": report.get("grid_alignment", 0.0),
+        "zones": report.get("zones", {}),
     }
