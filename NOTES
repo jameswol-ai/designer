@@ -1,0 +1,51 @@
+DESIGNER
+│
+├── DESIGN BASICS
+│   ├── Human Dimensions
+│   ├── Space Requirements
+│   ├── Movement
+│   ├── Accessibility
+│   └── Dimensional Coordination
+│
+├── BUILDING TYPES
+│   ├── Housing
+│   ├── Offices
+│   ├── Schools
+│   ├── Universities
+│   ├── Hospitals
+│   ├── Hotels
+│   ├── Retail
+│   ├── Restaurants
+│   ├── Libraries
+│   ├── Industrial
+│   ├── Sports
+│   ├── Religious
+│   ├── Civic
+│   └── Transport
+│
+├── ENVIRONMENT
+│   ├── Daylight
+│   ├── Lighting
+│   ├── Ventilation
+│   ├── Thermal
+│   ├── Acoustics
+│   └── Tropical Design
+│
+├── SAFETY
+│   ├── Fire
+│   ├── Egress
+│   ├── Accessibility
+│   ├── Security
+│   └── Flood
+│
+└── DESIGN ENGINE
+    ├── Space Program
+    ├── Adjacency
+    ├── Planning
+    ├── Dimensions
+    ├── Compliance
+    ├── Building Model
+    ├── Floor Plans
+    ├── Sections
+    ├── Elevations
+    └── Reports
