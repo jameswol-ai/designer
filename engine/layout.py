@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import ceil, sqrt
+from math import sqrt
 from typing import Dict, List, Tuple
 
 from .models import Project, Space
@@ -90,7 +90,6 @@ def _candidate_positions(room: Dict, placed: List[Dict], max_width: float) -> Li
         + [p["y"] + p["depth"] + room["depth"] + GAP for p in placed if p["floor"] == room["floor"]]
     )
 
-    # Add a regular scan grid as a fallback so awkward room dimensions still find a position.
     x = 0.0
     while x <= max(0.0, max_width - room["width"]) + 0.01:
         positions.add((round(x, 2), 0.0))
@@ -120,10 +119,10 @@ def _best_position(room: Dict, placed: List[Dict], targets: List[str], max_width
         if target_rooms:
             score += min(_touch_distance(candidate, target) for target in target_rooms) * 2.5
         elif placed:
-            score += min(_touch_distance(candidate, other) for other in placed if other["floor"] == room["floor"]) * 0.15
+            nearby = [other for other in placed if other["floor"] == room["floor"]]
+            if nearby:
+                score += min(_touch_distance(candidate, other) for other in nearby) * 0.15
 
-        if _zone(room.get("space", room),) if False else False:
-            pass
         if best is None or score < best_score:
             best = (x, y)
             best_score = score
@@ -131,7 +130,6 @@ def _best_position(room: Dict, placed: List[Dict], targets: List[str], max_width
     if best is not None:
         return best
 
-    # Deterministic last-resort placement below the current floor envelope.
     floor_rooms = [p for p in placed if p["floor"] == room["floor"]]
     depth = max((p["y"] + p["depth"] for p in floor_rooms), default=0.0)
     return 0.0, round(depth + GAP, 2)
@@ -141,7 +139,6 @@ def _assign_floors(instances: List[Tuple[Space, int]], floors: int) -> Dict[int,
     assignments = {floor: [] for floor in range(1, floors + 1)}
     names = {space.name for space, _ in instances}
 
-    # Keep required adjacency pairs together whenever possible.
     groups: List[List[Tuple[Space, int]]] = []
     used = set()
     for index, (space, instance) in enumerate(instances):
@@ -182,7 +179,6 @@ def generate_layout(project: Project, columns: int = 2) -> List[Dict]:
     columns = max(1, int(columns))
     site_area = max(float(project.site_area), 100.0)
     max_width = max(6.0, sqrt(site_area) * 0.75)
-    # More columns allow a wider initial envelope while preserving the argument's effect.
     max_width = max(max_width, columns * 3.0)
 
     assignments = _assign_floors(instances, floors)
@@ -191,7 +187,6 @@ def generate_layout(project: Project, columns: int = 2) -> List[Dict]:
     for floor in range(1, floors + 1):
         floor_instances = assignments.get(floor, [])
         names = {space.name for space, _ in floor_instances}
-        # High-priority and adjacency-rich spaces are placed first.
         ordered = sorted(
             floor_instances,
             key=lambda item: (
