@@ -47,7 +47,7 @@ ENVIRONMENT=["Daylight","Lighting","Ventilation","Thermal","Acoustics","Tropical
 SAFETY=["Fire","Egress","Accessibility","Security","Flood"]
 
 NAVIGATION={
-    "Project":{"Dashboard":dashboard,"Project Brief":project_brief,"Site & Context":site_context},
+    "Project":{"Dashboard":dashboard,"Workflow":workflow,"Project Brief":project_brief,"Site & Context":site_context},
     "Design Basics":{name:basics(name) for name in ["Human Dimensions","Space Requirements","Movement","Accessibility","Dimensional Coordination"]},
     "Building Types":{name:reference("Building Types",name) for name in BUILDING_TYPES},
     "Environment":{name:reference("Environment",name) for name in ENVIRONMENT},
