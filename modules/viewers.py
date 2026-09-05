@@ -24,8 +24,15 @@ def _safe_floor_count(project):
     return max(1, floors)
 
 
-def _floor_plan(project, floor=1, labels=True, grid=True, dimensions=True, structural_grid=True):
-    building = generate_building(project)
+def _active_layout(project):
+    layout = st.session_state.get("selected_planning_layout")
+    if isinstance(layout, list) and layout:
+        return layout
+    return None
+
+
+def _floor_plan(project, floor=1, labels=True, grid=True, dimensions=True, structural_grid=True, layout=None):
+    building = generate_building(project, layout=layout)
     rooms = [r for r in building.rooms if int(r.get("floor", 1)) == int(floor)]
     fig = go.Figure()
     for r in rooms:
@@ -103,9 +110,9 @@ def _furniture_trace(item, floor_height=FLOOR_HEIGHT):
     return go.Mesh3d(x=vx, y=vy, z=vz, i=i, j=j, k=k, opacity=0.9, name=item.name, hovertemplate=f"{item.name}<br>{item.room}<br>{item.width:.2f} x {item.depth:.2f} m<extra></extra>", showlegend=False)
 
 
-def _architectural_model(project, selected_floor=None, show_walls=True, show_slabs=True, show_openings=True, show_structure=True, show_stairs=True, show_furniture=True):
+def _architectural_model(project, selected_floor=None, show_walls=True, show_slabs=True, show_openings=True, show_structure=True, show_stairs=True, show_furniture=True, layout=None):
     fig = go.Figure()
-    building = generate_building(project)
+    building = generate_building(project, layout=layout)
     elements = building.elements if selected_floor is None else [e for e in building.elements if e.floor == int(selected_floor)]
     enabled = {"wall": show_walls, "column": show_structure, "slab": show_slabs, "floor_slab": show_slabs, "roof_slab": show_slabs, "door": show_openings, "window": show_openings, "stair": show_stairs}
     for element in elements:
@@ -140,9 +147,13 @@ def _elevation(project, title, depth=False):
 
 def render(project):
     st.subheader("Architectural Viewers")
-    st.caption("Interactive conceptual visualization of the generated architectural building model.")
+    st.caption("Interactive conceptual visualization of the selected planning alternative.")
     view = st.selectbox("View", VIEW_MODES, index=min(2, len(VIEW_MODES)-1))
     floors = _safe_floor_count(project)
+    layout = _active_layout(project)
+    active_name = st.session_state.get("selected_planning_alternative")
+    if layout:
+        st.caption(f"Active planning alternative: {active_name or 'Selected layout'}")
 
     if view == "Dashboard":
         st.info("Use the Dashboard workspace for project metrics and scoring.")
@@ -157,7 +168,7 @@ def render(project):
         show_structure = c4.checkbox("Structure", True)
         show_stairs = c5.checkbox("Stairs", True)
         show_furniture = c6.checkbox("Furniture", True)
-        fig, building = _architectural_model(project, selected_floor, show_walls, show_slabs, show_openings, show_structure, show_stairs, show_furniture)
+        fig, building = _architectural_model(project, selected_floor, show_walls, show_slabs, show_openings, show_structure, show_stairs, show_furniture, layout)
         st.plotly_chart(fig, use_container_width=True)
         st.subheader("Generated building")
         st.dataframe([building.summary()], use_container_width=True, hide_index=True)
@@ -170,7 +181,7 @@ def render(project):
         grid = c2.checkbox("Reference grid", True)
         dimensions = c3.checkbox("Dimensions", True)
         structural_grid = c4.checkbox("Structural grid", True)
-        fig, rooms = _floor_plan(project, floor, labels, grid, dimensions, structural_grid)
+        fig, rooms = _floor_plan(project, floor, labels, grid, dimensions, structural_grid, layout)
         st.plotly_chart(fig, use_container_width=True)
         st.subheader("Dimension schedule")
         st.dataframe([dimension_summary(project, floor)], use_container_width=True, hide_index=True)
@@ -186,7 +197,7 @@ def render(project):
         else:
             st.info("No spaces are assigned to this floor.")
     elif view == "Site Plan":
-        fig, _ = _floor_plan(project, 1, True, True, True, True)
+        fig, _ = _floor_plan(project, 1, True, True, True, True, layout)
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe([parking_plan(project)], use_container_width=True, hide_index=True)
     elif view == "Elevations":
