@@ -94,8 +94,10 @@ FLAT_TABS = [tab for tabs in NAVIGATION.values() for tab in tabs]
 active_metric_rows = st.session_state.get("metric_handbook_standards", [])
 
 if "project" not in st.session_state:
+    # Keep first-run project creation compatible with older deployed planner builds.
+    # No imported Metric dataset can exist on the first pass unless a project already exists.
     st.session_state.project = build_project(
-        "My Architectural Project", "Residential", 1000.0, 1, "Medium", session_rows=active_metric_rows
+        "My Architectural Project", "Residential", 1000.0, 1, "Medium"
     )
 
 if "active_tab" not in st.session_state or st.session_state.active_tab not in FLAT_TABS:
