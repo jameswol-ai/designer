@@ -11,10 +11,8 @@ def _draw_layout(layout):
     for r in layout:
         fig.add_shape(
             type="rect",
-            x0=r["x"],
-            y0=r["y"],
-            x1=r["x"] + r["width"],
-            y1=r["y"] + r["depth"],
+            x0=r["x"], y0=r["y"],
+            x1=r["x"] + r["width"], y1=r["y"] + r["depth"],
             line=dict(width=2),
         )
         fig.add_annotation(
@@ -39,7 +37,7 @@ def render(project):
     st.subheader("Space Planner")
     st.caption("Generate, compare and select conceptual planning alternatives before building generation.")
 
-    max_columns = st.slider("Maximum planning columns", 1, 6, 4)
+    max_columns = st.slider("Maximum planning columns", 1, 6, 4, key="planning_max_columns")
     summary = planning_summary(project, max_columns=max_columns)
 
     c1, c2, c3, c4 = st.columns(4)
@@ -58,10 +56,11 @@ def render(project):
     st.dataframe(rows, use_container_width=True, hide_index=True)
 
     labels = [a.name for a in alternatives]
-    default_index = 0
-    if summary.get("recommended") in labels:
-        default_index = labels.index(summary["recommended"])
-    selected = st.selectbox("Alternative", labels, index=default_index, key="selected_planning_alternative")
+    stored = st.session_state.get("selected_planning_alternative")
+    if stored not in labels:
+        stored = summary.get("recommended") if summary.get("recommended") in labels else labels[0]
+    default_index = labels.index(stored)
+    selected = st.selectbox("Alternative", labels, index=default_index, key="planning_alternative_choice")
     alternative = alternatives[labels.index(selected)]
 
     st.session_state["selected_planning_layout"] = alternative.layout
@@ -104,3 +103,8 @@ def render(project):
         manual_layout = generate_layout(project, columns=columns)
         st.plotly_chart(_draw_layout(manual_layout), use_container_width=True)
         st.json(constraint_report(project, manual_layout))
+        if st.button("Use manual layout", key="use_manual_layout", use_container_width=True):
+            st.session_state["selected_planning_layout"] = manual_layout
+            st.session_state["selected_planning_alternative"] = f"Manual layout ({columns} columns)"
+            st.session_state["selected_planning_columns"] = columns
+            st.rerun()
