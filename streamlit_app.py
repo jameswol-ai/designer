@@ -38,9 +38,6 @@ NAVIGATION = {
     },
 }
 
-WORKSPACES = {
-    workspace: list(items.keys()) for workspace, items in NAVIGATION.items()
-}
 FLAT_TABS = [tab for tabs in NAVIGATION.values() for tab in tabs]
 
 if "project" not in st.session_state:
@@ -55,7 +52,6 @@ active_tab = st.session_state.active_tab
 active_section = next(
     section for section, tabs in NAVIGATION.items() if active_tab in tabs
 )
-
 project = st.session_state.project
 
 with st.sidebar:
@@ -63,22 +59,26 @@ with st.sidebar:
     st.caption("Architectural Design Studio")
     st.divider()
 
+    st.markdown("**Design Stage**")
     section_names = list(NAVIGATION)
     section_index = section_names.index(active_section)
-    selected_section = st.selectbox(
-        "Design stage",
+    selected_section = st.radio(
+        "Design Stage",
         section_names,
         index=section_index,
-        key="navigation_section",
+        label_visibility="collapsed",
+        key="sidebar_design_stage",
     )
 
+    st.markdown("**Workspace**")
     section_tabs = list(NAVIGATION[selected_section])
     tab_index = section_tabs.index(active_tab) if active_section == selected_section else 0
-    selected_tab = st.selectbox(
+    selected_tab = st.radio(
         "Workspace",
         section_tabs,
         index=tab_index,
-        key="navigation_workspace",
+        label_visibility="collapsed",
+        key="sidebar_workspace",
     )
 
     if selected_tab != st.session_state.active_tab:
@@ -102,7 +102,7 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.info(
+    st.caption(
         "Metric values included in this prototype are illustrative baseline data. "
         "Licensed handbook-derived rules can be added to the metric data layer."
     )
