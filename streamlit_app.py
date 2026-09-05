@@ -1,4 +1,6 @@
 import json
+from functools import partial
+
 import streamlit as st
 
 from engine import build_project, score_project
@@ -13,28 +15,73 @@ from modules import (
     floor_plan,
     compliance,
     viewers,
+    design_reference,
 )
 
 st.set_page_config(page_title="Designer | Architectural Design Studio", page_icon="D", layout="wide")
 
+
+def reference(section, topic):
+    return partial(design_reference.render, section=section, topic=topic)
+
+
 NAVIGATION = {
+    "Design Basics": {
+        "Human Dimensions": reference("Design Basics", "Human Dimensions"),
+        "Space Requirements": reference("Design Basics", "Space Requirements"),
+        "Movement": reference("Design Basics", "Movement"),
+        "Accessibility (Design Basics)": reference("Design Basics", "Accessibility"),
+        "Dimensional Coordination": reference("Design Basics", "Dimensional Coordination"),
+    },
+    "Building Types": {
+        "Housing": reference("Building Types", "Housing"),
+        "Offices": reference("Building Types", "Offices"),
+        "Schools": reference("Building Types", "Schools"),
+        "Universities": reference("Building Types", "Universities"),
+        "Hospitals": reference("Building Types", "Hospitals"),
+        "Hotels": reference("Building Types", "Hotels"),
+        "Retail": reference("Building Types", "Retail"),
+        "Restaurants": reference("Building Types", "Restaurants"),
+        "Libraries": reference("Building Types", "Libraries"),
+        "Industrial": reference("Building Types", "Industrial"),
+        "Sports": reference("Building Types", "Sports"),
+        "Religious": reference("Building Types", "Religious"),
+        "Civic": reference("Building Types", "Civic"),
+        "Transport": reference("Building Types", "Transport"),
+    },
+    "Environment": {
+        "Daylight": reference("Environment", "Daylight"),
+        "Lighting": reference("Environment", "Lighting"),
+        "Ventilation": reference("Environment", "Ventilation"),
+        "Thermal": reference("Environment", "Thermal"),
+        "Acoustics": reference("Environment", "Acoustics"),
+        "Tropical Design": reference("Environment", "Tropical Design"),
+    },
+    "Safety": {
+        "Fire": reference("Safety", "Fire"),
+        "Egress": reference("Safety", "Egress"),
+        "Accessibility (Safety)": reference("Safety", "Accessibility"),
+        "Security": reference("Safety", "Security"),
+        "Flood": reference("Safety", "Flood"),
+    },
+    "Design Engine": {
+        "Space Program": space_program,
+        "Adjacency": adjacency,
+        "Planning": space_planner,
+        "Dimensions": viewers,
+        "Compliance": compliance,
+        "Building Model": viewers,
+        "Floor Plans": floor_plan,
+        "Sections": viewers,
+        "Elevations": viewers,
+        "Reports": viewers,
+        "Metric Standards": metric_handbook,
+        "Viewers": viewers,
+    },
     "Project": {
         "Dashboard": dashboard,
         "Project Brief": project_brief,
         "Site & Context": site_context,
-    },
-    "Planning": {
-        "Space Program": space_program,
-        "Metric Standards": metric_handbook,
-        "Space Planner": space_planner,
-        "Adjacency": adjacency,
-    },
-    "Design & Views": {
-        "Viewers": viewers,
-        "Floor Plan": floor_plan,
-    },
-    "Review": {
-        "Compliance": compliance,
     },
 }
 
@@ -79,6 +126,7 @@ with st.sidebar:
         index=tab_index,
         label_visibility="collapsed",
         key="sidebar_workspace",
+        format_func=lambda value: value.split(" (")[0],
     )
 
     if selected_tab != st.session_state.active_tab:
@@ -119,6 +167,8 @@ current_module = next(
 
 if st.session_state.active_tab == "Dashboard":
     current_module.render(project, scores)
+elif callable(current_module) and not hasattr(current_module, "render"):
+    current_module(project)
 else:
     current_module.render(project)
 
