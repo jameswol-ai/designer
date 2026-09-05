@@ -9,6 +9,7 @@ from engine.vertical import stair_schedule
 from engine.environment import environmental_checks
 from engine.egress import egress_summary
 from engine.site import parking_plan
+from engine.architectural_model import building_elements, element_summary
 
 FLOOR_HEIGHT = 3.2
 
@@ -44,45 +45,55 @@ def _box_vertices(width, depth, z0, z1):
     )
 
 
-def _stacked_model(project, selected_floor=None, show_rooms=False):
-    summary = model_summary(project)
-    width, depth = summary["floor_width_m"], summary["floor_depth_m"]
+def _element_trace(element):
+    x, y, z = element.x, element.y, element.z
+    w, d, h = element.width, element.depth, element.height
+    if element.kind in {"wall", "column", "slab"}:
+        x0, x1 = x, x + w
+        y0, y1 = y, y + d
+        z0, z1 = z, z + h
+        vx = [x0,x1,x1,x0,x0,x1,x1,x0]
+        vy = [y0,y0,y1,y1,y0,y0,y1,y1]
+        vz = [z0,z0,z0,z0,z1,z1,z1,z1]
+        i = [0,0,0,4,4,4,0,1,2,3]
+        j = [1,2,4,5,6,7,1,5,6,7]
+        k = [2,3,5,6,7,4,5,6,7,4]
+        return go.Mesh3d(x=vx, y=vy, z=vz, i=i, j=j, k=k, opacity=0.75, name=element.name, hovertemplate=f"{element.name}<extra></extra>")
+    if element.kind == "stair":
+        steps = 10
+        traces = []
+        step_depth = d / steps if steps else d
+        for n in range(steps):
+            traces.append(go.Mesh3d(
+                x=[x,x+w,x+w,x,x,x+w,x+w,x],
+                y=[y+n*step_depth,y+n*step_depth,y+(n+1)*step_depth,y+(n+1)*step_depth,y+n*step_depth,y+n*step_depth,y+(n+1)*step_depth,y+(n+1)*step_depth],
+                z=[z+n*h/steps]*4+[z+(n+1)*h/steps]*4,
+                i=[0,0,0,4,4,4,0,1,2,3], j=[1,2,4,5,6,7,1,5,6,7], k=[2,3,5,6,7,4,5,6,7,4],
+                opacity=0.8, name=element.name, showlegend=n == 0,
+                hovertemplate=f"{element.name}<extra></extra>",
+            ))
+        return traces
+    return go.Scatter3d(x=[x, x+w], y=[y, y+d], z=[z, z+h], mode="lines", name=element.name)
+
+
+def _architectural_model(project, selected_floor=None, show_walls=True, show_slabs=True, show_openings=True, show_structure=True, show_stairs=True):
     fig = go.Figure()
-    floors = range(1, max(1, int(project.floors)) + 1)
-    if selected_floor is not None:
-        floors = [int(selected_floor)]
-
-    layout = generate_layout(project)
-    for floor in floors:
-        z0 = (floor - 1) * FLOOR_HEIGHT
-        z1 = floor * FLOOR_HEIGHT
-        x, y, z = _box_vertices(width, depth, z0, z1)
-        i = [0, 0, 0, 4, 4, 4, 0, 1, 2, 3]
-        j = [1, 2, 4, 5, 6, 7, 1, 5, 6, 7]
-        k = [2, 3, 5, 6, 7, 4, 5, 6, 7, 4]
-        fig.add_trace(go.Mesh3d(
-            x=x, y=y, z=z, i=i, j=j, k=k,
-            opacity=0.22, name=f"Level {floor}",
-            hovertemplate=f"Level {floor}<extra></extra>",
-        ))
-        if show_rooms:
-            for room in [r for r in layout if r.get("floor") == floor]:
-                rx0, ry0 = room["x"], room["y"]
-                rx1, ry1 = rx0 + room["width"], ry0 + room["depth"]
-                fig.add_trace(go.Scatter3d(
-                    x=[rx0, rx1, rx1, rx0, rx0],
-                    y=[ry0, ry0, ry1, ry1, ry0],
-                    z=[z0 + 0.04] * 5,
-                    mode="lines",
-                    name=room["name"],
-                    showlegend=False,
-                    hovertemplate=f"{room['name']}<br>{room['area']:.1f} m²<extra></extra>",
-                ))
-
+    elements = building_elements(project, selected_floor)
+    enabled = {"wall": show_walls, "slab": show_slabs, "door": show_openings, "window": show_openings, "column": show_structure, "stair": show_stairs}
+    for element in elements:
+        if not enabled.get(element.kind, True):
+            continue
+        traces = _element_trace(element)
+        if isinstance(traces, list):
+            for trace in traces:
+                fig.add_trace(trace)
+        else:
+            fig.add_trace(traces)
     fig.update_layout(
-        height=700,
-        scene=dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)"),
+        height=720,
+        scene=dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)", aspectmode="data"),
         margin=dict(l=0, r=0, t=20, b=0),
+        legend=dict(orientation="h"),
     )
     return fig
 
@@ -113,9 +124,16 @@ def render(project):
         c1, c2 = st.columns(2)
         floor_options = ["All floors"] + list(range(1, max(1, int(project.floors)) + 1))
         floor = c1.selectbox("Building level", floor_options)
-        rooms = c2.checkbox("Show room geometry", True)
         selected_floor = None if floor == "All floors" else int(floor)
-        st.plotly_chart(_stacked_model(project, selected_floor, rooms), use_container_width=True)
+        c1, c2, c3, c4, c5 = st.columns(5)
+        show_walls = c1.checkbox("Walls", True)
+        show_slabs = c2.checkbox("Slabs", True)
+        show_openings = c3.checkbox("Doors and windows", True)
+        show_structure = c4.checkbox("Structure", True)
+        show_stairs = c5.checkbox("Stairs", True)
+        st.plotly_chart(_architectural_model(project, selected_floor, show_walls, show_slabs, show_openings, show_structure, show_stairs), use_container_width=True)
+        st.subheader("Model elements")
+        st.dataframe([element_summary(project)], use_container_width=True, hide_index=True)
 
     elif view == "Floor Plan":
         floor = st.slider("Floor", 1, max(1, project.floors), 1)
